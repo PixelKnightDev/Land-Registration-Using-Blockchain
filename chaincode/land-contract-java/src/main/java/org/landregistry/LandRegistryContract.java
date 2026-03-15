@@ -9,6 +9,8 @@ import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ChaincodeException;
+import org.hyperledger.fabric.shim.ledger.KeyValue;
+import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import com.owlike.genson.Genson;
 
 @Contract(
@@ -151,6 +153,109 @@ public final class LandRegistryContract implements ContractInterface {
         ctx.getStub().putStringState(ulpin, genson.serialize(updatedLand));
 
         return updatedLand;
+    }
+
+    /**
+     * Splits an existing land parcel into two new child parcels (Mutation).
+     * @param ctx the transaction context
+     * @param parentUlpin the ULPIN of the land being split
+     * @param currentOwnerId the ID of the owner authorizing the split
+     * @param child1Ulpin the primary key for the first new parcel
+     * @param child1Gps the GPS boundary for the first new parcel
+     * @param child2Ulpin the primary key for the second new parcel
+     * @param child2Gps the GPS boundary for the second new parcel
+     * @param newDocumentHash the hash of the new mutation deed/document
+     * @return a success message confirming the mutation
+     */
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public String mutateLand(final Context ctx, final String parentUlpin, final String currentOwnerId,
+                             final String child1Ulpin, final String child1Gps,
+                             final String child2Ulpin, final String child2Gps,
+                             final String newDocumentHash) {
+        // 1. Fetch and Validate Parent Asset
+        String parentJson = ctx.getStub().getStringState(parentUlpin);
+        if (parentJson == null || parentJson.isEmpty()) {
+            throw new ChaincodeException("Mutation Rejected: Parent Land Asset does not exist", 
+                                         LandRegistryErrors.ASSET_NOT_FOUND.toString());
+        }
+        LandAsset parentLand = genson.deserialize(parentJson, LandAsset.class);
+
+        // 2. Verify Ownership and Status
+        if (!parentLand.getCurrentOwnerId().equals(currentOwnerId)) {
+            throw new ChaincodeException("Mutation Rejected: Unauthorized owner", 
+                                         LandRegistryErrors.UNAUTHORIZED_SELLER.toString());
+        }
+        if (!parentLand.getStatus().equals("ACTIVE")) {
+            throw new ChaincodeException("Mutation Rejected: Parent asset is not ACTIVE", 
+                                         LandRegistryErrors.ASSET_NOT_ACTIVE.toString());
+        }
+
+        // Safety Check: Ensure new ULPINs don't clash with existing ones
+        if (assetExists(ctx, child1Ulpin) || assetExists(ctx, child2Ulpin)) {
+            throw new ChaincodeException("Mutation Rejected: One or both child ULPINs already exist", 
+                                         LandRegistryErrors.ASSET_ALREADY_EXISTS.toString());
+        }
+
+        // 3. RETIRE the Parent Asset (Enforcing Immutability)
+        LandAsset retiredParent = new LandAsset(
+                parentLand.getUlpin(),
+                parentLand.getGpsCoordinates(),
+                parentLand.getParentUlpin(),
+                parentLand.getCurrentOwnerId(),
+                newDocumentHash,
+                "RETIRED_MUTATED" // <-- Status change
+        );
+        ctx.getStub().putStringState(parentUlpin, genson.serialize(retiredParent));
+
+        // 4. MINT Child Asset 1
+        LandAsset child1 = new LandAsset(
+                child1Ulpin, child1Gps, parentUlpin, // <-- Lineage tied to parent
+                currentOwnerId, newDocumentHash, "ACTIVE"
+        );
+        ctx.getStub().putStringState(child1Ulpin, genson.serialize(child1));
+
+        // 5. MINT Child Asset 2
+        LandAsset child2 = new LandAsset(
+                child2Ulpin, child2Gps, parentUlpin, // <-- Lineage tied to parent
+                currentOwnerId, newDocumentHash, "ACTIVE"
+        );
+        ctx.getStub().putStringState(child2Ulpin, genson.serialize(child2));
+
+        return String.format("Successfully mutated %s into %s and %s", parentUlpin, child1Ulpin, child2Ulpin);
+    }
+
+    /**
+     * Retrieves a Land Asset by its ULPIN.
+     */
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public LandAsset queryLandByUlpin(final Context ctx, final String ulpin) {
+        String landJson = ctx.getStub().getStringState(ulpin);
+        if (landJson == null || landJson.isEmpty()) {
+            throw new ChaincodeException("Land Asset " + ulpin + " does not exist",
+                                         LandRegistryErrors.ASSET_NOT_FOUND.toString());
+        }
+        return genson.deserialize(landJson, LandAsset.class);
+    }
+
+    /**
+     * Optional but Highly Recommended for CouchDB: Query by Owner
+     * Uses CouchDB rich JSON querying to find all land owned by a specific Aadhaar/ID.
+     */
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public String queryLandByOwner(final Context ctx, final String ownerId) {
+        String queryString = String.format("{\"selector\":{\"currentOwnerId\":\"%s\"}}", ownerId);
+        
+        // Use Fabric's rich query iterator
+        QueryResultsIterator<KeyValue> results = ctx.getStub().getQueryResult(queryString);
+        
+        // Iterate and build a JSON array response
+        StringBuilder response = new StringBuilder("[");
+        for (KeyValue result : results) {
+            if (response.length() > 1) response.append(",");
+            response.append(result.getStringValue());
+        }
+        response.append("]");
+        return response.toString();
     }
 
     /**
