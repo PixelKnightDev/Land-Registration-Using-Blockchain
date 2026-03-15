@@ -111,11 +111,11 @@ public final class LandRegistryContract implements ContractInterface {
          // Input Validation: Ensure buyerId and newDocumentHash are not null or blank
          if (buyerId == null || buyerId.trim().isEmpty()) {
              throw new ChaincodeException("Transaction Rejected: buyerId must not be null or blank",
-                                          "INVALID_BUYER_ID");
+                                          LandRegistryErrors.INVALID_INPUT.toString());
          }
          if (newDocumentHash == null || newDocumentHash.trim().isEmpty()) {
              throw new ChaincodeException("Transaction Rejected: newDocumentHash must not be null or blank",
-                                          "INVALID_DOCUMENT_HASH");
+                                          LandRegistryErrors.INVALID_INPUT.toString());
          }
         // RULE 1: Land Existence
         String landJson = ctx.getStub().getStringState(ulpin);
