@@ -1,11 +1,14 @@
-# Hyperledger Fabric generated artifacts
-blockchain-network/fabric-samples/
-organizations/
-system-genesis-block/
-channel-artifacts/
+# -------------------------
+# Hyperledger Fabric artifacts
+# -------------------------
 
-*.block
-*.tx
+blockchain-network/fabric-samples/
+blockchain-network/crypto-config/
+blockchain-network/genesis.block
+blockchain-network/*.block
+blockchain-network/*.tx
+blockchain-network/channel-artifacts/
+blockchain-network/system-genesis-block/
 
 # Fabric logs
 *.log
@@ -13,27 +16,31 @@ channel-artifacts/
 # Docker volumes
 compose_*
 
-# Certificates
-*.pem
-*.key
-*.crt
-*.csr
+# -------------------------
+# Node / React
+# -------------------------
 
-# Node
 node_modules/
+frontend-ui/build/
 
+# -------------------------
 # Java
+# -------------------------
+
 build/
 .gradle/
 *.class
 *.jar
 
-# React
-frontend-ui/build/
-
+# -------------------------
 # Environment files
+# -------------------------
+
 .env
 
+# -------------------------
 # OS files
+# -------------------------
+
 .DS_Store
 Thumbs.db
