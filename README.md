@@ -33,7 +33,7 @@ This ensures:
 | Attribute | Value |
 |--------|--------|
 | Repository | Land-Registration-Using-Blockchain |
-| Author | Pratyush |
+| Author | PR Project |
 | GitHub | BitForge95 |
 | Year | 2026 |
 | License | Apache 2.0 |
