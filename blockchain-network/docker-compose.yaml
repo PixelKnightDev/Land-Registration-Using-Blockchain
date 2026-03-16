@@ -81,6 +81,10 @@ services:
     container_name: peer0.org2.landregistry.com
 
     environment:
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/crypto/peerOrganizations/org2.landregistry.com/peers/peer0.org2.landregistry.com/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/crypto/peerOrganizations/org2.landregistry.com/peers/peer0.org2.landregistry.com/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/crypto/peerOrganizations/org2.landregistry.com/peers/peer0.org2.landregistry.com/tls/ca.crt
       - FABRIC_LOGGING_SPEC=INFO
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/crypto/peerOrganizations/org2.landregistry.com/peers/peer0.org2.landregistry.com/msp
       - CORE_PEER_ID=peer0.org2.landregistry.com
@@ -125,7 +129,7 @@ services:
       - ORDERER_GENERAL_LISTENPORT=7050
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
       - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer0.landregistry.com/msp
-      - ORDERER_GENERAL_BOOTSTRAPMETHOD=genesisFile
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
       - ORDERER_GENERAL_BOOTSTRAPFILE=/etc/hyperledger/fabric/genesisblock
       - ORDERER_GENERAL_TLS_ENABLED=true
       - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer0.landregistry.com/tls/server.key
@@ -154,7 +158,8 @@ services:
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
       - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer1.landregistry.com/msp
       - ORDERER_GENERAL_GENESISFILE=/etc/hyperledger/fabric/genesisblock
-
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/etc/hyperledger/fabric/genesisblock
       - ORDERER_GENERAL_TLS_ENABLED=true
       - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer1.landregistry.com/tls/server.key
       - ORDERER_GENERAL_TLS_CERTIFICATE=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer1.landregistry.com/tls/server.crt
@@ -182,7 +187,8 @@ services:
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
       - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer2.landregistry.com/msp
       - ORDERER_GENERAL_GENESISFILE=/etc/hyperledger/fabric/genesisblock
-
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/etc/hyperledger/fabric/genesisblock
       - ORDERER_GENERAL_TLS_ENABLED=true
       - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer2.landregistry.com/tls/server.key
       - ORDERER_GENERAL_TLS_CERTIFICATE=/etc/hyperledger/fabric/crypto/ordererOrganizations/landregistry.com/orderers/orderer2.landregistry.com/tls/server.crt

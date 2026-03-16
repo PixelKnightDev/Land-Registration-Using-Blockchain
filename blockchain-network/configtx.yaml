@@ -1,167 +1,117 @@
-Organizations:
+# --- FABRIC 2.X CAPABILITIES ---
+Capabilities:
+  Channel: &ChannelCapabilities
+    V2_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_0: true
 
+Organizations:
   - &OrdererOrg
-    Name: OrdererMSP
+    Name: OrdererOrg
     ID: OrdererMSP
     MSPDir: crypto-config/ordererOrganizations/landregistry.com/msp
-
     Policies:
-      Readers:
-        Type: Signature
-        Rule: "OR('OrdererMSP.member')"
-      Writers:
-        Type: Signature
-        Rule: "OR('OrdererMSP.member')"
-      Admins:
-        Type: Signature
-        Rule: "OR('OrdererMSP.admin')"
+      Readers: {Type: Signature, Rule: "OR('OrdererMSP.member')"}
+      Writers: {Type: Signature, Rule: "OR('OrdererMSP.member')"}
+      Admins: {Type: Signature, Rule: "OR('OrdererMSP.member')"}
 
   - &Org1
     Name: Org1MSP
     ID: Org1MSP
     MSPDir: crypto-config/peerOrganizations/org1.landregistry.com/msp
-
     Policies:
-      Readers:
-        Type: Signature
-        Rule: "OR('Org1MSP.admin','Org1MSP.peer','Org1MSP.client')"
-      Writers:
-        Type: Signature
-        Rule: "OR('Org1MSP.admin','Org1MSP.client')"
-      Admins:
-        Type: Signature
-        Rule: "OR('Org1MSP.admin')"
-
+      Readers: {Type: Signature, Rule: "OR('Org1MSP.member')"}
+      Writers: {Type: Signature, Rule: "OR('Org1MSP.member')"}
+      Admins: {Type: Signature, Rule: "OR('Org1MSP.member')"}
+      Endorsement: {Type: Signature, Rule: "OR('Org1MSP.member')"}
     AnchorPeers:
       - Host: peer0.org1.landregistry.com
         Port: 7051
-
 
   - &Org2
     Name: Org2MSP
     ID: Org2MSP
     MSPDir: crypto-config/peerOrganizations/org2.landregistry.com/msp
-
     Policies:
-      Readers:
-        Type: Signature
-        Rule: "OR('Org2MSP.admin','Org2MSP.peer','Org2MSP.client')"
-      Writers:
-        Type: Signature
-        Rule: "OR('Org2MSP.admin','Org2MSP.client')"
-      Admins:
-        Type: Signature
-        Rule: "OR('Org2MSP.admin')"
-
+      Readers: {Type: Signature, Rule: "OR('Org2MSP.member')"}
+      Writers: {Type: Signature, Rule: "OR('Org2MSP.member')"}
+      Admins: {Type: Signature, Rule: "OR('Org2MSP.member')"}
+      Endorsement: {Type: Signature, Rule: "OR('Org2MSP.member')"}
     AnchorPeers:
       - Host: peer0.org2.landregistry.com
         Port: 9051
 
+# --- RELAXED FABRIC 2.X POLICIES FOR DEV ---
+Channel: &ChannelDefaults
+  Policies:
+    Readers: {Type: ImplicitMeta, Rule: "ANY Readers"}
+    Writers: {Type: ImplicitMeta, Rule: "ANY Writers"}
+    Admins: {Type: ImplicitMeta, Rule: "ANY Admins"}
+  Capabilities:
+    <<: *ChannelCapabilities
+
+Application: &ApplicationDefaults
+  Policies:
+    Readers: {Type: ImplicitMeta, Rule: "ANY Readers"}
+    Writers: {Type: ImplicitMeta, Rule: "ANY Writers"}
+    Admins: {Type: ImplicitMeta, Rule: "ANY Admins"}
+    LifecycleEndorsement: {Type: ImplicitMeta, Rule: "ANY Endorsement"}
+    Endorsement: {Type: ImplicitMeta, Rule: "ANY Endorsement"}
+  Capabilities:
+    <<: *ApplicationCapabilities
+
 Orderer: &OrdererDefaults
-
   OrdererType: etcdraft
-
   Addresses:
     - orderer0.landregistry.com:7050
     - orderer1.landregistry.com:8050
     - orderer2.landregistry.com:9050
-
-  BatchTimeout: 2s
-
-  BatchSize:
-    MaxMessageCount: 10
-    AbsoluteMaxBytes: 99 MB
-    PreferredMaxBytes: 512 KB
-
   Policies:
-    Readers:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member')"
-
-    Writers:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member')"
-
-    Admins:
-      Type: Signature
-      Rule: "OR('OrdererMSP.admin')"
-
-    BlockValidation:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member')"
-
+    Readers: {Type: ImplicitMeta, Rule: "ANY Readers"}
+    Writers: {Type: ImplicitMeta, Rule: "ANY Writers"}
+    Admins: {Type: ImplicitMeta, Rule: "ANY Admins"}
+    BlockValidation: {Type: ImplicitMeta, Rule: "ANY Writers"}
+  Capabilities:
+    <<: *OrdererCapabilities
   EtcdRaft:
-
     Consenters:
-
       - Host: orderer0.landregistry.com
         Port: 7050
         ClientTLSCert: crypto-config/ordererOrganizations/landregistry.com/orderers/orderer0.landregistry.com/tls/server.crt
         ServerTLSCert: crypto-config/ordererOrganizations/landregistry.com/orderers/orderer0.landregistry.com/tls/server.crt
-
       - Host: orderer1.landregistry.com
         Port: 8050
         ClientTLSCert: crypto-config/ordererOrganizations/landregistry.com/orderers/orderer1.landregistry.com/tls/server.crt
         ServerTLSCert: crypto-config/ordererOrganizations/landregistry.com/orderers/orderer1.landregistry.com/tls/server.crt
-
       - Host: orderer2.landregistry.com
         Port: 9050
         ClientTLSCert: crypto-config/ordererOrganizations/landregistry.com/orderers/orderer2.landregistry.com/tls/server.crt
         ServerTLSCert: crypto-config/ordererOrganizations/landregistry.com/orderers/orderer2.landregistry.com/tls/server.crt
-
-Application: &ApplicationDefaults
-
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
   Organizations:
+    - *OrdererOrg
 
-  Policies:
-
-    Readers:
-      Type: Signature
-      Rule: "OR('Org1MSP.member','Org2MSP.member')"
-
-    Writers:
-      Type: Signature
-      Rule: "OR('Org1MSP.member','Org2MSP.member')"
-
-    Admins:
-      Type: Signature
-      Rule: "OR('Org1MSP.admin','Org2MSP.admin')"
-
+# --- NETWORK PROFILES ---
 Profiles:
-
   Genesis:
-
+    <<: *ChannelDefaults
     Orderer:
       <<: *OrdererDefaults
-      Organizations:
-        - *OrdererOrg
-
     Consortiums:
-
       LandConsortium:
         Organizations:
           - *Org1
           - *Org2
 
-    Policies:
-
-      Readers:
-        Type: Signature
-        Rule: "OR('OrdererMSP.member','Org1MSP.member','Org2MSP.member')"
-
-      Writers:
-        Type: Signature
-        Rule: "OR('OrdererMSP.member','Org1MSP.member','Org2MSP.member')"
-
-      Admins:
-        Type: Signature
-        Rule: "OR('OrdererMSP.admin','Org1MSP.admin','Org2MSP.admin')"
-
-
   LandChannel:
-
     Consortium: LandConsortium
-
+    <<: *ChannelDefaults
     Application:
       <<: *ApplicationDefaults
       Organizations:
