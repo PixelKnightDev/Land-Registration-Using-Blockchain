@@ -1,0 +1,14 @@
+package org.landregistry;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class LandRegistryApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(LandRegistryApplication.class, args);
+        System.out.println("Land Registry API Gateway is running!");
+    }
+
+}

@@ -1,0 +1,33 @@
+plugins {
+    id 'org.springframework.boot' version '3.2.3'
+    id 'io.spring.dependency-management' version '1.1.4'
+    id 'java'
+}
+
+group = 'org.landregistry'
+version = '1.0.0'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot for REST APIs
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    
+    // Hyperledger Fabric Client SDK (The Bridge to your blockchain)
+    implementation 'org.hyperledger.fabric:fabric-gateway:1.4.0'
+    
+    // JSON parsing and gRPC requirements
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'io.grpc:grpc-netty-shaded:1.59.0'
+    implementation 'io.grpc:grpc-protobuf:1.59.0'
+    implementation 'io.grpc:grpc-stub:1.59.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
