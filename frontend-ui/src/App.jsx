@@ -1,22 +1,65 @@
-import React from 'react';
+import { useState } from 'react';
 import RegisterLand from './components/RegisterLand';
 import SearchLand from './components/SearchLand';
-import TransferLand from './components/TransferLand'; // Import the transfer component
+import OwnerSearch from './components/OwnerSearch';
+import TransferLand from './components/TransferLand';
+import MutateLand from './components/MutateLand';
+import './index.css';
 
-function App() {
+const NAV_ITEMS = [
+  { id: 'register', label: 'Register Parcel',   icon: '⊕' },
+  { id: 'search',   label: 'Search by ULPIN',   icon: '◎' },
+  { id: 'owner',    label: 'Search by Owner',   icon: '◈' },
+  { id: 'transfer', label: 'Transfer Ownership',icon: '⇌' },
+  { id: 'mutate',   label: 'Mutate / Split',    icon: '⊗' },
+];
+
+const PAGES = {
+  register: <RegisterLand />,
+  search:   <SearchLand />,
+  owner:    <OwnerSearch />,
+  transfer: <TransferLand />,
+  mutate:   <MutateLand />,
+};
+
+export default function App() {
+  const [active, setActive] = useState('register');
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', textAlign: 'center' }}>
-      <h1>🏛️ Decentralized Land Registry</h1>
-      <p>Hyperledger Fabric + Spring Boot + React</p>
-      
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px', alignItems: 'flex-start' }}>
-          <RegisterLand />
-          <TransferLand />
-          <SearchLand />
-      </div>
-      
+    <div className="app-layout">
+      <aside className="sidebar">
+        <div className="tricolor-bar" />
+        <div className="sidebar-logo">
+          <div className="logo-emblem">⊛</div>
+          <div className="logo-name">BHUMI REGISTRY</div>
+          <div className="logo-dept">Ministry of Rural Development</div>
+        </div>
+
+        <nav className="sidebar-nav">
+          <div className="nav-section-label">Operations</div>
+          {NAV_ITEMS.map(({ id, label, icon }) => (
+            <div
+              key={id}
+              className={`nav-item${active === id ? ' active' : ''}`}
+              onClick={() => setActive(id)}
+            >
+              <span className="nav-icon">{icon}</span>
+              <span>{label}</span>
+            </div>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="network-status">
+            <div className="status-dot" />
+            <span>Fabric · landchannel</span>
+          </div>
+        </div>
+      </aside>
+
+      <main className="main-content" key={active}>
+        {PAGES[active]}
+      </main>
     </div>
   );
 }
-
-export default App;

@@ -1,48 +1,146 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { transferOwnership } from '../services/api';
+import LandRecord from './LandRecord';
 
-const TransferLand = () => {
-    const [formData, setFormData] = useState({
-        ulpin: '',
-        newOwnerId: ''
-    });
-    const [status, setStatus] = useState('');
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setStatus('Initiating Transfer on Blockchain...');
-        
-        try {
-            const result = await transferOwnership(formData.ulpin, formData.newOwnerId);
-            setStatus(`Transfer Successful! \n${JSON.stringify(result, null, 2)}`);
-            setFormData({ ulpin: '', newOwnerId: '' });
-        } catch (error) {
-            setStatus('Transfer Failed. Check Spring Boot logs for details.');
-        }
-    };
-
-    return (
-        <div style={{ maxWidth: '500px', margin: '20px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-            <h2>Transfer Ownership</h2>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                
-                <input type="text" name="ulpin" placeholder="Target ULPIN (e.g., MP-JBP-2026-003)" 
-                       value={formData.ulpin} onChange={handleChange} required style={{ padding: '8px' }}/>
-                       
-                <input type="text" name="newOwnerId" placeholder="New Owner Aadhar ID" 
-                       value={formData.newOwnerId} onChange={handleChange} required style={{ padding: '8px' }}/>
-
-                <button type="submit" style={{ padding: '10px', backgroundColor: '#ff9800', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                    Execute Transfer
-                </button>
-            </form>
-            {status && <pre style={{ marginTop: '15px', fontWeight: 'bold', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{status}</pre>}
-        </div>
-    );
+const INITIAL_FORM = {
+  ulpin: '',
+  sellerId: '',
+  newOwnerId: '',
+  newDocumentHash: '',
 };
 
-export default TransferLand;
+export default function TransferLand() {
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const onChange = (e) =>
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setResult(null);
+    setError(null);
+
+    try {
+      const data = await transferOwnership(form.ulpin, {
+        newOwnerId: form.newOwnerId,
+        sellerId: form.sellerId,
+        newDocumentHash: form.newDocumentHash,
+      });
+      setResult(data);
+      setForm(INITIAL_FORM);
+    } catch (err) {
+      setError(err.message || 'Transfer failed. Check Spring Boot logs for details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <h1 className="page-title">Transfer Ownership</h1>
+        <p className="page-subtitle">
+          Execute an ownership transfer transaction on the blockchain
+        </p>
+      </div>
+
+      <div className="known-issue">
+        <strong>Known Backend Issue:</strong> The current backend service passes
+        empty strings for <code>sellerId</code> and <code>newDocumentHash</code> to
+        the chaincode, which validates both as required fields and rejects the
+        transaction. Update <code>LandRegistryService.transferOwnership()</code> to
+        forward these fields. This form sends them ready for when that fix lands.
+      </div>
+
+      <div className="card">
+        <div className="card-title">
+          <span>⇌</span> Ownership Transfer Form
+        </div>
+
+        <form onSubmit={onSubmit} className="form-grid">
+          <div className="form-field">
+            <label className="field-label">Target ULPIN *</label>
+            <input
+              className="field-input mono"
+              name="ulpin"
+              value={form.ulpin}
+              onChange={onChange}
+              placeholder="MP-JBP-2026-003"
+              required
+            />
+            <span className="field-hint">The parcel being transferred — must be ACTIVE</span>
+          </div>
+
+          <div className="form-field">
+            <label className="field-label">Seller (Current Owner) Aadhaar *</label>
+            <input
+              className="field-input"
+              name="sellerId"
+              value={form.sellerId}
+              onChange={onChange}
+              placeholder="AADHAR-1122-3344"
+              required
+            />
+            <span className="field-hint">Must match the currentOwnerId on the ledger</span>
+          </div>
+
+          <div className="form-field">
+            <label className="field-label">New Owner Aadhaar *</label>
+            <input
+              className="field-input"
+              name="newOwnerId"
+              value={form.newOwnerId}
+              onChange={onChange}
+              placeholder="AADHAR-5566-7788"
+              required
+            />
+          </div>
+
+          <div className="form-field">
+            <label className="field-label">New Document Hash *</label>
+            <input
+              className="field-input mono"
+              name="newDocumentHash"
+              value={form.newDocumentHash}
+              onChange={onChange}
+              placeholder="QmNewHashAfterTransfer..."
+              required
+            />
+            <span className="field-hint">Updated deed document hash after ownership change</span>
+          </div>
+
+          <button
+            className="btn btn-danger"
+            type="submit"
+            disabled={loading}
+            style={{ marginTop: 4 }}
+          >
+            {loading ? (
+              <><span className="spinner" /> Executing Transfer...</>
+            ) : (
+              'Execute Transfer on Ledger'
+            )}
+          </button>
+        </form>
+
+        {result && (
+          <div className="alert alert-success fade-in" style={{ marginTop: 16 }}>
+            Ownership transferred successfully.
+          </div>
+        )}
+
+        {error && (
+          <div className="alert alert-error fade-in" style={{ marginTop: 16 }}>
+            {error}
+          </div>
+        )}
+      </div>
+
+      {result && <LandRecord data={result} />}
+    </>
+  );
+}
