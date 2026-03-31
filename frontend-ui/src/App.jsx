@@ -5,7 +5,7 @@ import OwnerSearch from './components/OwnerSearch';
 import TransferLand from './components/TransferLand';
 import MutateLand from './components/MutateLand';
 import AssetHistory from './components/AssetHistory';
-import MapView from './components/Mapview';
+import MapView from './components/MapView';
 import './index.css';
 
 const NAV_ITEMS = [

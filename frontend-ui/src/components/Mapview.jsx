@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
+
+// ── State code lookup ─────────────────────────────────────────────────────────
 const STATE_CODES = {
   'Madhya Pradesh': 'MP', 'Uttar Pradesh': 'UP', 'Rajasthan': 'RJ',
   'Maharashtra': 'MH', 'Gujarat': 'GJ', 'Karnataka': 'KA',
@@ -18,76 +27,90 @@ function toCode(name = '') {
   return words.map(w => w[0]).join('').slice(0, 3).toUpperCase().padEnd(3, 'X');
 }
 
+// Serial range 000–999 (matches the placeholder format MP-JBP-2026-003)
 function coordSerial(lat, lng) {
-  return String(Math.abs(Math.round((lat * 1000 + lng * 100) * 7)) % 900 + 100).padStart(3, '0');
+  return String(Math.abs(Math.round((lat * 1000 + lng * 100) * 7)) % 1000)
+    .padStart(3, '0');
 }
 
 function generateUlpin(geo, lat, lng) {
-  const state    = STATE_CODES[geo.state] ?? toCode(geo.state);
+  const state = STATE_CODES[geo.state] ?? toCode(geo.state);
   const district = toCode(geo.district || geo.city || geo.county);
-  const year     = new Date().getFullYear();
-  const serial   = coordSerial(lat, lng);
+  const year = new Date().getFullYear();
+  const serial = coordSerial(lat, lng);
   return `${state}-${district}-${year}-${serial}`;
 }
 
-async function reverseGeocode(lat, lng) {
+// Nominatim reverse geocode — called directly for demo/dev use.
+// For production: proxy through the Spring Boot backend with caching and
+// a proper User-Agent header (Nominatim policy requires identification).
+async function reverseGeocode(lat, lng, signal) {
   const res = await fetch(
     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-    { headers: { 'Accept-Language': 'en' } }
+    {
+      signal,
+      headers: {
+        'Accept-Language': 'en',
+        // User-Agent not settable from browsers (CORS restriction).
+        // Set it server-side if you proxy this through Spring Boot.
+      },
+    }
   );
-  if (!res.ok) throw new Error('Geocoding failed');
+  if (!res.ok) throw new Error(`Geocoding failed (${res.status})`);
   const data = await res.json();
   const addr = data.address || {};
   return {
-    state:       addr.state || '',
-    district:    addr.county || addr.state_district || '',
-    city:        addr.city || addr.town || addr.village || '',
+    state: addr.state || '',
+    district: addr.county || addr.state_district || '',
+    city: addr.city || addr.town || addr.village || '',
     displayName: data.display_name || '',
   };
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function MapView({ onNavigateRegister }) {
-  const mapRef     = useRef(null);
+  const mapRef = useRef(null);
   const leafletRef = useRef(null);
-  const markerRef  = useRef(null);
+  const markerRef = useRef(null);
+  // Track latest request to discard out-of-order responses
+  const reqIdRef = useRef(0);
+  // AbortController for the in-flight geocode fetch
+  const abortRef = useRef(null);
 
-  const [clicked,    setClicked]    = useState(null);
-  const [geocode,    setGeocode]    = useState(null);
-  const [ulpin,      setUlpin]      = useState('');
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState(null);
+  const [clicked, setClicked] = useState(null);
+  const [geocode, setGeocode] = useState(null);
+  const [ulpin, setUlpin] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (window.L) { initMap(); return; }
-    const link = document.createElement('link');
-    link.rel  = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
-    const script   = document.createElement('script');
-    script.src     = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload  = initMap;
-    document.head.appendChild(script);
-  }, []);
+  const pinIcon = useCallback(() => L.divIcon({
+    className: '',
+    html: `<div style="width:20px;height:20px;background:#0f2d5a;border:3px solid #fff;
+            border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+            box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 20],
+  }), []);
 
   const initMap = useCallback(() => {
     if (leafletRef.current) return;
-    const L   = window.L;
+
     const map = L.map(mapRef.current, { zoomControl: true }).setView([22.9, 78.6], 5);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
 
-    const makeIcon = () => L.divIcon({
-      className: '',
-      html: `<div style="width:20px;height:20px;background:#0f2d5a;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 20],
-    });
-
     map.on('click', async ({ latlng: { lat, lng } }) => {
+      // Cancel any in-flight request from a previous click
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
+
+      // Stamp this request; only apply its result if it's still the latest
+      const thisReq = ++reqIdRef.current;
+
       if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-      else markerRef.current = L.marker([lat, lng], { icon: makeIcon() }).addTo(map);
+      else markerRef.current = L.marker([lat, lng], { icon: pinIcon() }).addTo(map);
 
       setClicked({ lat, lng });
       setGeocode(null);
@@ -96,23 +119,34 @@ export default function MapView({ onNavigateRegister }) {
       setLoading(true);
 
       try {
-        const geo       = await reverseGeocode(lat, lng);
-        const generated = generateUlpin(geo, lat, lng);
+        const geo = await reverseGeocode(lat, lng, abortRef.current.signal);
+        // Discard if a newer click already superseded this one
+        if (thisReq !== reqIdRef.current) return;
         setGeocode(geo);
-        setUlpin(generated);
-      } catch {
+        setUlpin(generateUlpin(geo, lat, lng));
+      } catch (err) {
+        if (err.name === 'AbortError') return; // superseded — silently ignore
+        if (thisReq !== reqIdRef.current) return;
         setError('Reverse geocoding failed. Check your connection.');
       } finally {
-        setLoading(false);
+        if (thisReq === reqIdRef.current) setLoading(false);
       }
     });
 
     leafletRef.current = map;
-  }, []);
+  }, [pinIcon]);
 
-  useEffect(() => () => {
-    if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; markerRef.current = null; }
-  }, []);
+  useEffect(() => {
+    initMap();
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+      if (leafletRef.current) {
+        leafletRef.current.remove();
+        leafletRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, [initMap]);
 
   const handleFillRegister = () => {
     if (onNavigateRegister && clicked && ulpin) {
@@ -135,16 +169,24 @@ export default function MapView({ onNavigateRegister }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, height: 520 }}>
 
         {/* MAP */}
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-default)', boxShadow: '0 1px 5px rgba(15,45,90,.07)' }}>
+        <div style={{
+          borderRadius: 8,
+          overflow: 'hidden',
+          border: '1px solid var(--border-default)',
+          boxShadow: '0 1px 5px rgba(15,45,90,.07)',
+        }}>
           <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
         </div>
 
         {/* PANEL */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Instruction state */}
           {!clicked && (
-            <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 14 }}>
+            <div className="card" style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              textAlign: 'center', gap: 14,
+            }}>
               <div style={{ fontSize: 36, opacity: 0.18 }}>◎</div>
               <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.65 }}>
                 Click anywhere on the map to identify a land parcel and generate its ULPIN
@@ -155,14 +197,13 @@ export default function MapView({ onNavigateRegister }) {
             </div>
           )}
 
-          {/* Result state */}
           {clicked && (
             <>
-              {/* Coordinates */}
               <div className="card" style={{ padding: '16px 18px' }}>
                 <div className="card-title" style={{ marginBottom: 13 }}>
                   <span>⌖</span> Selected Location
                 </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                   <div className="record-field">
                     <span className="record-label">Latitude</span>
@@ -181,9 +222,11 @@ export default function MapView({ onNavigateRegister }) {
                   </div>
                 )}
 
-                {error && <div className="alert alert-error fade-in" style={{ marginTop: 8 }}>{error}</div>}
+                {error && (
+                  <div className="alert alert-error fade-in" style={{ marginTop: 8 }}>{error}</div>
+                )}
 
-                {geocode && (
+                {geocode && !loading && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div className="record-field">
                       <span className="record-label">State</span>
@@ -197,7 +240,9 @@ export default function MapView({ onNavigateRegister }) {
                       <div className="record-field">
                         <span className="record-label" style={{ fontSize: 9 }}>Full Address</span>
                         <span style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                          {geocode.displayName.slice(0, 120)}{geocode.displayName.length > 120 ? '...' : ''}
+                          {geocode.displayName.length > 120
+                            ? geocode.displayName.slice(0, 120) + '…'
+                            : geocode.displayName}
                         </span>
                       </div>
                     )}
@@ -205,8 +250,7 @@ export default function MapView({ onNavigateRegister }) {
                 )}
               </div>
 
-              {/* Generated ULPIN + CTA */}
-              {ulpin && (
+              {ulpin && !loading && (
                 <div className="card" style={{ padding: '16px 18px' }}>
                   <div className="card-title" style={{ marginBottom: 13 }}>
                     <span>⊞</span> Generated ULPIN
@@ -219,7 +263,13 @@ export default function MapView({ onNavigateRegister }) {
                     padding: '11px 14px',
                     marginBottom: 14,
                   }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--navy)', letterSpacing: '0.05em' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: 'var(--navy)',
+                      letterSpacing: '0.05em',
+                    }}>
                       {ulpin}
                     </span>
                   </div>
