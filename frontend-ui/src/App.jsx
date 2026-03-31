@@ -4,20 +4,22 @@ import SearchLand from './components/SearchLand';
 import OwnerSearch from './components/OwnerSearch';
 import TransferLand from './components/TransferLand';
 import MutateLand from './components/MutateLand';
+import AssetHistory from './components/AssetHistory';
 import MapView from './components/Mapview';
 import './index.css';
 
 const NAV_ITEMS = [
-  { id: 'map', label: 'Search by Map', icon: '⊞' },
-  { id: 'register', label: 'Register Parcel', icon: '◫' },
+  { id: 'register', label: 'Register Parcel', icon: '⊕' },
   { id: 'search', label: 'Search by ULPIN', icon: '◎' },
   { id: 'owner', label: 'Search by Owner', icon: '◈' },
+  { id: 'map', label: 'Search by Map', icon: '⊞' },
   { id: 'transfer', label: 'Transfer Ownership', icon: '⇌' },
   { id: 'mutate', label: 'Mutate / Split', icon: '⊗' },
+  { id: 'history', label: 'Audit Trail', icon: '◷' },
 ];
 
 export default function App() {
-  const [active, setActive] = useState('map');
+  const [active, setActive] = useState('register');
   const [prefill, setPrefill] = useState(null);
 
   const navigateTo = (page, data = null) => {
@@ -27,20 +29,14 @@ export default function App() {
 
   const renderPage = () => {
     switch (active) {
-      case 'map':
-        return <MapView onNavigateRegister={(data) => navigateTo('register', data)} />;
-      case 'register':
-        return <RegisterLand prefill={prefill} onPrefillUsed={() => setPrefill(null)} />;
-      case 'search':
-        return <SearchLand />;
-      case 'owner':
-        return <OwnerSearch />;
-      case 'transfer':
-        return <TransferLand />;
-      case 'mutate':
-        return <MutateLand />;
-      default:
-        return null;
+      case 'register': return <RegisterLand prefill={prefill} onPrefillUsed={() => setPrefill(null)} />;
+      case 'search': return <SearchLand />;
+      case 'owner': return <OwnerSearch />;
+      case 'map': return <MapView onNavigateRegister={(data) => navigateTo('register', data)} />;
+      case 'transfer': return <TransferLand />;
+      case 'mutate': return <MutateLand />;
+      case 'history': return <AssetHistory />;
+      default: return null;
     }
   };
 
