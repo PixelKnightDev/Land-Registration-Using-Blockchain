@@ -4,6 +4,7 @@ import SearchLand from './components/SearchLand';
 import OwnerSearch from './components/OwnerSearch';
 import TransferLand from './components/TransferLand';
 import MutateLand from './components/MutateLand';
+import AssetHistory from './components/AssetHistory';
 import './index.css';
 
 const NAV_ITEMS = [
@@ -12,6 +13,7 @@ const NAV_ITEMS = [
   { id: 'owner',    label: 'Search by Owner',   icon: '◈' },
   { id: 'transfer', label: 'Transfer Ownership',icon: '⇌' },
   { id: 'mutate',   label: 'Mutate / Split',    icon: '⊗' },
+  { id: 'history',  label: 'Audit Trail',       icon: '◷' },
 ];
 
 const PAGES = {
@@ -20,6 +22,7 @@ const PAGES = {
   owner:    <OwnerSearch />,
   transfer: <TransferLand />,
   mutate:   <MutateLand />,
+  history:  <AssetHistory />,
 };
 
 export default function App() {

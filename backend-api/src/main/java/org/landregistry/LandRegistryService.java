@@ -29,17 +29,39 @@ public class LandRegistryService {
         return new String(result, StandardCharsets.UTF_8);
     }
 
-    public String transferOwnership(String ulpin, String newOwnerId) throws Exception {
-        byte[] result = contract.submitTransaction("transferLandOwnership", ulpin, "", "", newOwnerId); 
+    public String transferOwnership(String ulpin, String sellerId, String newOwnerId, String newDocumentHash) throws Exception {
+        byte[] result = contract.submitTransaction("transferLandOwnership", ulpin, sellerId, newOwnerId, newDocumentHash); 
         return new String(result, StandardCharsets.UTF_8);
     }
 
-    public String mutateLand(String originalUlpin, String newUlpin1, String newUlpin2, String newDimensions1, String newDimensions2) throws Exception {
-        byte[] result = contract.submitTransaction("mutateLand", originalUlpin, newUlpin1, newUlpin2, newDimensions1, newDimensions2);
+    public String mutateLand(
+            String parentUlpin, 
+            String currentOwnerId, 
+            String child1Ulpin, 
+            String child1Gps, 
+            String child2Ulpin, 
+            String child2Gps, 
+            String newDocumentHash) throws Exception {
+        
+        byte[] result = contract.submitTransaction(
+            "mutateLand", 
+            parentUlpin == null ? "" : parentUlpin, 
+            currentOwnerId == null ? "" : currentOwnerId, 
+            child1Ulpin == null ? "" : child1Ulpin, 
+            child1Gps == null ? "" : child1Gps, 
+            child2Ulpin == null ? "" : child2Ulpin, 
+            child2Gps == null ? "" : child2Gps, 
+            newDocumentHash == null ? "" : newDocumentHash
+        );
         return new String(result, StandardCharsets.UTF_8);
     }
-
     // --- READ OPERATIONS (Fast Local Queries) ---
+
+    public String getLandHistory(String ulpin) throws Exception {
+        // We use evaluateTransaction because we are just reading the ledger, not modifying it
+        byte[] result = contract.evaluateTransaction("getAssetHistory", ulpin);
+        return new String(result, StandardCharsets.UTF_8);
+    }
 
     public String readLandAsset(String ulpin) throws Exception {
         byte[] result = contract.evaluateTransaction("queryLandByUlpin", ulpin);

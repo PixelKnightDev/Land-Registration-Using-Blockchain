@@ -17,6 +17,11 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.hyperledger.fabric.shim.ChaincodeStub;
+import org.hyperledger.fabric.shim.ledger.KeyModification;
+
 @Contract(
         name = "LandRegistryContract",
         info = @Info(
@@ -372,5 +377,27 @@ public final class LandRegistryContract implements ContractInterface {
     private boolean assetExists(final Context ctx, final String ulpin) {
         String landJson = ctx.getStub().getStringState(ulpin);
         return (landJson != null && !landJson.isEmpty());
+    }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public String getAssetHistory(final Context ctx, final String ulpin) {
+        ChaincodeStub stub = ctx.getStub();
+        
+        // Use the native Fabric API to get the history for a specific key
+        QueryResultsIterator<KeyModification> history = stub.getHistoryForKey(ulpin);
+
+        List<String> historyList = new ArrayList<>();
+        
+        // Loop through the history and build a JSON response
+        for (KeyModification modification : history) {
+            String record = String.format("{\"txId\":\"%s\", \"value\":%s, \"timestamp\":\"%s\", \"isDeleted\":%b}",
+                    modification.getTxId(),
+                    modification.getStringValue(),
+                    modification.getTimestamp().toString(),
+                    modification.isDeleted());
+            historyList.add(record);
+        }
+
+        return "[" + String.join(",", historyList) + "]";
     }
 }

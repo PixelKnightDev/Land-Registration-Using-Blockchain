@@ -29,10 +29,10 @@ export default function MutateLand() {
     try {
       const data = await mutateLand(form.parentUlpin, {
         currentOwnerId: form.currentOwnerId,
-        newUlpin1: form.child1Ulpin,
-        newDimensions1: form.child1Gps,
-        newUlpin2: form.child2Ulpin,
-        newDimensions2: form.child2Gps,
+        child1Ulpin: form.child1Ulpin,
+        child1Gps: form.child1Gps,
+        child2Ulpin: form.child2Ulpin,
+        child2Gps: form.child2Gps,
         newDocumentHash: form.newDocumentHash,
       });
       setResult(typeof data === 'string' ? data : JSON.stringify(data, null, 2));

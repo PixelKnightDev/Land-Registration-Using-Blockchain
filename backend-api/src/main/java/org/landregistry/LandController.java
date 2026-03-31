@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/land")
-@CrossOrigin(origins = "*") // Allows your future frontend UI to call this API locally
+@CrossOrigin(origins = "*") // Allows your frontend UI to call this API locally
 public class LandController {
 
     private final LandRegistryService landRegistryService;
@@ -19,8 +19,11 @@ public class LandController {
 
     // --- Data Transfer Objects (DTOs) for JSON payloads ---
     public record CreateLandRequest(String ulpin, String gpsCoordinates, String parentUlpin, String currentOwnerId, String documentHash) {}
-    public record TransferRequest(String newOwnerId) {}
-    public record MutateRequest(String newUlpin1, String newUlpin2, String newDimensions1, String newDimensions2) {}
+    
+    public record TransferRequest(String sellerId, String newOwnerId, String newDocumentHash) {}
+    
+    // UPDATED: Now perfectly matches the React frontend mutation form
+    public record MutateRequest(String currentOwnerId, String child1Ulpin, String child1Gps, String child2Ulpin, String child2Gps, String newDocumentHash) {}
 
     // --- ENDPOINTS ---
 
@@ -59,7 +62,13 @@ public class LandController {
     @PutMapping("/{ulpin}/transfer")
     public ResponseEntity<String> transferOwnership(@PathVariable String ulpin, @RequestBody TransferRequest request) {
         try {
-            String result = landRegistryService.transferOwnership(ulpin, request.newOwnerId());
+            // Pass all three required fields to the service layer
+            String result = landRegistryService.transferOwnership(
+                ulpin, 
+                request.sellerId(), 
+                request.newOwnerId(), 
+                request.newDocumentHash()
+            );
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
@@ -71,8 +80,16 @@ public class LandController {
     @PostMapping("/{ulpin}/mutate")
     public ResponseEntity<String> mutateLand(@PathVariable String ulpin, @RequestBody MutateRequest request) {
         try {
+            // UPDATED: Passing all 7 required arguments down to the Chaincode
             String result = landRegistryService.mutateLand(
-                    ulpin, request.newUlpin1(), request.newUlpin2(), request.newDimensions1(), request.newDimensions2());
+                    ulpin, 
+                    request.currentOwnerId(), 
+                    request.child1Ulpin(), 
+                    request.child1Gps(), 
+                    request.child2Ulpin(), 
+                    request.child2Gps(), 
+                    request.newDocumentHash()
+            );
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
@@ -85,6 +102,18 @@ public class LandController {
     public ResponseEntity<String> queryLandByOwner(@PathVariable String ownerId) {
         try {
             String result = landRegistryService.queryLandByOwner(ownerId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
+        }
+    }
+
+    // 6. View the Immutable Audit Trail (Blockchain History)
+    // GET http://localhost:8080/api/land/{ulpin}/history
+    @GetMapping("/{ulpin}/history")
+    public ResponseEntity<String> getLandHistory(@PathVariable String ulpin) {
+        try {
+            String result = landRegistryService.getLandHistory(ulpin);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());

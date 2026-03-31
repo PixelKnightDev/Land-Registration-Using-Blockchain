@@ -9,6 +9,8 @@ blockchain-network/*.block
 blockchain-network/*.tx
 blockchain-network/channel-artifacts/
 blockchain-network/system-genesis-block/
+blockchain-network/organizations/
+*.tar.gz
 
 # Fabric logs
 *.log
@@ -22,6 +24,7 @@ compose_*
 
 node_modules/
 frontend-ui/build/
+frontend-ui/dist/
 
 # -------------------------
 # Java
